@@ -8,7 +8,7 @@ import http.cookiejar
 from lxml.html import fragment_fromstring
 from collections import OrderedDict
 
-def get_data(*args, **kwargs):
+def get_data(filters = {}, *args, **kwargs):
     url = 'http://www.fundamentus.com.br/resultado.php'
     cj = http.cookiejar.CookieJar()
     opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cj))
@@ -45,7 +45,7 @@ def get_data(*args, **kwargs):
             'roic_max':'',
             'roe_min':'',
             'roe_max':'',
-            'liq_min':'',
+            'liq_min':'100000',
             'liq_max':'',
             'patrim_min':'',
             'patrim_max':'',
@@ -58,6 +58,8 @@ def get_data(*args, **kwargs):
             'ordem':'1',
             'x':'28',
             'y':'16'}
+
+    data.update(filters)
 
     with opener.open(url, urllib.parse.urlencode(data).encode('UTF-8')) as link:
         content = link.read().decode('ISO-8859-1')
@@ -87,16 +89,64 @@ def get_data(*args, **kwargs):
                                                                        'Pat.Liq': rows.getchildren()[17].text,
                                                                        'Div.Brut/Pat.': rows.getchildren()[18].text,
                                                                        'Cresc.5a': rows.getchildren()[19].text}})
-    
+
     return lista
-    
+
 if __name__ == '__main__':
     from waitingbar import WaitingBar
-    
+
     THE_BAR = WaitingBar('[*] Downloading...')
-    lista = get_data()
+    pl_index = get_data({'pl_min': '1', 'pl_max': '30'})
+    roe_index = get_data({'roe_min': '0.06'})
+    pvp_index = get_data({'pvp_min': '0.00', 'pvp_max': '2'})
+    liq_index = get_data({'liqcorr_min': '1'})
+    mebit_index = get_data({'margemebit_min': '0.04'})
+
     THE_BAR.stop()
-    
+
+    print("")
+    print("PL")
+    print(len(pl_index))
+    print("")
+    print("ROE")
+    print(len(roe_index))
+    print("")
+    print("PVP")
+    print(len(pvp_index))
+    print("")
+    print("LIQ")
+    print(len(liq_index))
+    print("")
+    print("M ebit")
+    print(len(mebit_index))
+    print("")
+    print("------------------------------------------")
+
+    pl_index = OrderedDict(sorted(pl_index.items(), key=lambda x: x[1]["P/L"]))
+    roe_index = OrderedDict(sorted(roe_index.items(), key=lambda x: x[1]["ROE"], reverse=True))
+    pvp_index = OrderedDict(sorted(pvp_index.items(), key=lambda x: x[1]["P/VP"]))
+    liq_index = OrderedDict(sorted(liq_index.items(), key=lambda x: x[1]["Liq.Corr."], reverse=True))
+    mebit_index = OrderedDict(sorted(mebit_index.items(), key=lambda x: x[1]["EBITDA"], reverse=True))
+
+    #print_report(pvp_index)
+    all_keys = list(pl_index.keys())
+    all_keys.extend(list(roe_index.keys()))
+    all_keys.extend(list(pvp_index.keys()))
+    all_keys.extend(list(liq_index.keys()))
+    all_keys.extend(list(mebit_index.keys()))
+
+    common = {}
+    for k in all_keys:
+        if k in pl_index.keys() and k in roe_index.keys() and k in pvp_index.keys() and k in liq_index.keys() and k in mebit_index.keys():
+            common[k] = list(pl_index.keys()).index(k) + list(roe_index.keys()).index(k) + list(pvp_index.keys()).index(k) + list(liq_index.keys()).index(k) + list(mebit_index.keys()).index(k)
+
+    items = sorted(common.items(), key=lambda x: x[1])
+
+
+
+
+
+
     print('{0:<7} {1:<7} {2:<10} {3:<7} {4:<10} {5:<7} {6:<10} {7:<10} {8:<10} {9:<11} {10:<11} {11:<7} {12:<11} {13:<14} {14:<7}'.format('Papel',
                                                                                                                                           'Cotação',
                                                                                                                                           'P/L',
@@ -112,9 +162,12 @@ if __name__ == '__main__':
                                                                                                                                           'ROE',
                                                                                                                                           'Div.Brut/Pat.',
                                                                                                                                           'Cresc.5a'))
-    
     print('-'*154)
-    for k, v in lista.items():
+
+
+    for i in items[:25]:
+        k = i[0]
+        v = pl_index[k]
         print('{0:<7} {1:<7} {2:<10} {3:<7} {4:<10} {5:<7} {6:<10} {7:<10} {8:<10} {9:<11} {10:<11} {11:<7} {12:<11} {13:<14} {14:<7}'.format(k,
                                                                                                                                               v['cotacao'],
                                                                                                                                               v['P/L'],
@@ -130,4 +183,6 @@ if __name__ == '__main__':
                                                                                                                                               v['ROE'],
                                                                                                                                               v['Div.Brut/Pat.'],
                                                                                                                                               v['Cresc.5a']))
+
+
 
